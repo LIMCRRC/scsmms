@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maintenance Plan</title>
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <script src="https://kit.fontawesome.com/a2d9d6a4d4.js" crossorigin="anonymous"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="styles-tech_maintenance.css">
+
+  <style>
+    /* === Extra Styles for Cards and Table === */
+
+    /* Summary cards */
+    .quick-actions {
+      display: flex;
+      gap: 0.8rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    
+    .action-card {
+      background: white;
+      border-radius: 4px;
+      padding: 0.8rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      flex: 1;
+      min-width: 160px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .action-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-color: #2b6cb0;
+    }
+    
+    .action-card h3 {
+      font-size: 0.85rem;
+      margin-bottom: 0.3rem;
+      color: #2c5282;
+    }
+    
+    .action-card .stat-value {
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin-bottom: 0.3rem;
+      color: #1a202c;
+    }
+    
+    .action-card .stat-trains {
+      font-size: 0.7rem;
+      color: #4a5568;
+      line-height: 1.3;
+      margin-top: auto;
+    }
+
+    /* Table */
+    .maintenance-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      font-size: 0.5rem;
+      overflow-x: auto;
+    }
+
+    .maintenance-table th,
+    .maintenance-table td {
+      border: 1px solid #ddd;
+      text-align: center;
+      padding: 3px 6px;
+      min-width: 30px;
+    }
+
+    .maintenance-table th {
+      background-color: #f1f3f4;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    .maintenance-table tr:nth-child(even) {
+      background-color: #fafafa;
+    }
+
+    .maintenance-table td.daily {
+      background-color: #c8e6c9; /* green */
+    }
+
+    .maintenance-table td.weekly {
+      background-color: #fff9c4; /* yellow */
+    }
+
+    .maintenance-table td.monthly {
+      background-color: #ffcdd2; /* red */
+    }
+    
+    /* Highlight for today's column */
+    .maintenance-table th.today-column,
+    .maintenance-table td.today-column {
+      background-color: #e6f7ff !important;
+      position: relative;
+    }
+    
+    .maintenance-table th.today-column::after {
+      content: "Today";
+      position: absolute;
+      bottom: -15px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #2b6cb0;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 0.55rem;
+      font-weight: bold;
+    }
+    
+    /* History Table */
+    .history-section {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e2e8f0;
+    }
+    
+    .history-section h2 {
+      font-size: 1.2rem;
+      color: #2c5282;
+      margin-bottom: 1rem;
+    }
+    
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+      font-size: 0.8rem;
+    }
+    
+    .history-table th,
+    .history-table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    
+    .history-table th {
+      background-color: #f1f3f4;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+    }
+    
+    .history-table tr:nth-child(even) {
+      background-color: #fafafa;
+    }
+     
+    /* Loading Overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(255, 255, 255, 0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-radius: 50%;
+      border-top-color: #2b6cb0;
+      animation: spin 1s ease-in-out infinite;
+      margin-bottom: 10px;
+    }
+
+    .loading-text {
+      color: #2c5282;
+      font-weight: 500;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading data...</div>
+  </div>
+
+  <!-- Sidebar Options -->
+  <div class="options-sidebar">
+    <div class="sidebar-header">
+      <h2>SCS Dashboard</h2>
+    </div>
+
+    <div class="user-info">
+      <div class="user-avatar">
+        <i class="fas fa-user-circle"></i>
+      </div>
+      <div class="user-details">
+        <div class="user-name" id="loggedInName">Loading...</div>
+        <div class="user-position" id="loggedInPosition">Loading...</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <ul class="options-list">
+        <li class="option-item">
+          <a href="#" class="option-btn" id="refreshBtn">
+            <i class="fas fa-sync-alt"></i>
+            <span>Refresh Data</span>
+          </a>
+        </li>
+        <li class="option-item">
+          <a href="login.html" class="option-btn">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Logout</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Maintenance Section -->
+    <div class="sidebar-section">
+      <div class="section-header">
+        <i class="fas fa-tools"></i>
+        <h3>Maintenance</h3>
+      </div>
+      
+      <ul class="options-list">
+        <li class="option-item">
+          <a href="tech_maintenance.html" class="option-btn" id="dashboardBtn">
+            <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
+          </a>
+        </li>
+
+        <li class="option-item">
+          <a href="plan.html" class="option-btn active">
+            <i class="fas fa-calendar-check"></i><span>Plan</span>
+          </a>
+        </li>
+
+        <li class="option-item-label" style="padding: 10px 15px; font-size: 0.8em; color: #888; text-transform: uppercase; font-weight: bold;">
+          Maintenance Work
+        </li>
+        
+        <li class="option-item">
+          <a href="tech_maintenance.html#handOverView" class="option-btn" id="handOverBtn">
+            <i class="fas fa-sign-in-alt"></i><span>Hand-Over</span>
+          </a>
+        </li>
+        
+        <li class="option-item">
+          <a href="tech_maintenance.html#handBackView" class="option-btn" id="handBackBtn">
+            <i class="fas fa-sign-out-alt"></i><span>Hand-Back</span>
+          </a>
+        </li>
+        
+        <li class="option-item">
+          <a href="tech_maintenance.html#historyView" class="option-btn" id="historyBtn">
+            <i class="fas fa-history"></i><span>History</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main-content">
+    <div class="operation-header">
+      <h1><i class="fas fa-calendar-alt"></i> Maintenance Plan</h1>
+    </div>
+    <p class="welcome-text">Overview of scheduled maintenance for all train sets. Today: <span id="todayDate"></span></p>
+
+    <!-- Summary Cards -->
+    <div class="quick-actions">
+      <div class="action-card" id="dailyCard">
+        <h3>Daily Maintenance</h3>
+        <div class="stat-value" id="dailyToday">0</div>
+        <div class="stat-trains" id="dailyTrains"></div>
+      </div>
+      <div class="action-card" id="weeklyCard">
+        <h3>Weekly Maintenance</h3>
+        <div class="stat-value" id="weeklyToday">0</div>
+        <div class="stat-trains" id="weeklyTrains"></div>
+      </div>
+      <div class="action-card" id="monthlyCard">
+        <h3>Monthly Maintenance</h3>
+        <div class="stat-value" id="monthlyToday">0</div>
+        <div class="stat-trains" id="monthlyTrains"></div>
+      </div>
+    </div>
+
+    <!-- Maintenance Table -->
+    <div class="maintenance-table">
+      <table>
+        <thead><tr></tr></thead>
+        <tbody id="maintenanceTableBody"></tbody>
+      </table>
+    </div>
+    
+    <!-- History Record Table -->
+    <div class="history-section">
+      <h2><i class="fas fa-history"></i> Maintenance History Record</h2>
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>Train No.</th>
+            <th>Last Maintenance Type</th>
+            <th>Last Maintenance Date</th>
+            <th>Days Since Last Maintenance</th>
+          </tr>
+        </thead>
+        <tbody id="historyTableBody">
+          <!-- Will be populated by JavaScript -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwVO4nV46goTQkD-tqD9ZoPgZTG3YGg_-wJ9-r4u9sM8TBiG5U7SN4PnZXgpF-ivwp--Q/exec";
+
+    // Loading Overlay Functions
+    function showLoadingOverlay(message = 'Loading...') {
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) {
+        overlay.querySelector('.loading-text').textContent = message;
+        overlay.style.display = 'flex';
+      }
+    }
+
+    function hideLoadingOverlay() {
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) overlay.style.display = 'none';
+    }
+
+    function formatDate(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+
+    // Format date as dd-mmm-yyyy (e.g., 03-Sep-2025)
+    function formatDateDisplay(date) {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = months[date.getMonth()];
+      const year = date.getFullYear();
+      return `${day}-${month}-${year}`;
+    }
+
+    // Calculate days between two dates
+    function daysBetween(date1, date2) {
+      const oneDay = 24 * 60 * 60 * 1000; // hours*minutes*seconds*milliseconds
+      const firstDate = new Date(date1);
+      const secondDate = new Date(date2);
+      return Math.round(Math.abs((firstDate - secondDate) / oneDay));
+    }
+
+    // Generate mock history data (replace with real data from your API)
+    function generateHistoryData(trainData) {
+      const today = new Date();
+      const historyData = [];
+      
+      for (let t = 1; t <= 38; t++) {
+        const trainId = "T" + String(t).padStart(2, "0");
+        
+        // Find the last maintenance date and type for this train
+        let lastMaintenanceDate = null;
+        let lastMaintenanceType = "None";
+        
+        if (trainData[trainId]) {
+          // Get all dates for this train and sort them in descending order
+          const dates = Object.keys(trainData[trainId]).sort((a, b) => {
+            return new Date(b) - new Date(a);
+          });
+          
+          // Find the most recent maintenance date that is today or in the past
+          for (const date of dates) {
+            const task = trainData[trainId][date];
+            const taskDate = new Date(date);
+            
+            if (taskDate <= today && task) {
+              lastMaintenanceDate = date;
+              lastMaintenanceType = task;
+              break;
+            }
+          }
+        }
+        
+        // If no maintenance found, use a default date (30 days ago)
+        if (!lastMaintenanceDate) {
+          const defaultDate = new Date();
+          defaultDate.setDate(today.getDate() - 30);
+          lastMaintenanceDate = formatDate(defaultDate);
+          lastMaintenanceType = "Unknown";
+        }
+        
+        // Calculate days since last maintenance
+        const daysSince = daysBetween(lastMaintenanceDate, formatDate(today));
+        
+        historyData.push({
+          trainId,
+          lastMaintenanceType,
+          lastMaintenanceDate,
+          daysSince
+        });
+      }
+      
+      return historyData;
+    }
+
+    // Build the history table
+    function buildHistoryTable(historyData) {
+      const tableBody = document.getElementById("historyTableBody");
+      tableBody.innerHTML = "";
+      
+      historyData.forEach(item => {
+        const row = document.createElement("tr");
+        
+        // Apply styling based on days since last maintenance
+        let rowClass = "";
+        if (item.daysSince > 30) {
+          rowClass = "overdue";
+        } else if (item.daysSince > 20) {
+          rowClass = "warning";
+        }
+        
+        if (rowClass) {
+          row.className = rowClass;
+        }
+        
+        row.innerHTML = `
+          <td>${item.trainId}</td>
+          <td>${item.lastMaintenanceType}</td>
+          <td>${formatDateDisplay(new Date(item.lastMaintenanceDate))}</td>
+          <td>${item.daysSince}</td>
+        `;
+        
+        tableBody.appendChild(row);
+      });
+    }
+
+async function loadData() {
+  showLoadingOverlay('Loading maintenance data...');
+  try {
+    const res = await fetch(`${SCRIPT_URL}?action=getMaintenancePlan`);
+    const json = await res.json();
+    
+    if (json.status === "success") {
+      // Use json.data.matrix for the big table
+      buildMatrix(json.data.matrix); 
+      
+      // Use json.data.matrix for history generation
+      const historyData = generateHistoryData(json.data.matrix);
+      buildHistoryTable(historyData);
+      
+      // Manually update summary cards if buildMatrix doesn't handle them
+      document.getElementById("dailyToday").innerText = json.data.summary.daily.length;
+      document.getElementById("weeklyToday").innerText = json.data.summary.weekly.length;
+      document.getElementById("monthlyToday").innerText = json.data.summary.monthly.length;
+    }
+  } catch (err) {
+    console.error("Fetch failed:", err);
+  } finally {
+    hideLoadingOverlay();
+  }
+}
+    function buildMatrix(trainData) {
+      const today = new Date();
+      // Use the new formatDateDisplay function for the UI
+      document.getElementById("todayDate").innerText = formatDateDisplay(today);
+
+      const body = document.getElementById("maintenanceTableBody");
+      const head = document.querySelector(".maintenance-table thead tr");
+
+      body.innerHTML = "";
+      head.innerHTML = "<th>SCS No.</th>";
+
+      // Get current month range
+      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+      const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+      let dates = [];
+      let todayColumnIndex = -1;
+      const todayStr = formatDate(today);
+      
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const dateStr = formatDate(new Date(d));
+        dates.push(dateStr);
+        // Format table headers as dd-mmm
+        const displayDate = formatDateDisplay(new Date(d)).substring(0, 6);
+        
+        // Check if this is today's column
+        const isToday = dateStr === todayStr;
+        const thClass = isToday ? 'today-column' : '';
+        
+        head.innerHTML += `<th class="${thClass}">${displayDate}</th>`;
+        
+        // Remember today's column index
+        if (isToday) {
+          todayColumnIndex = dates.length; // +1 because of the SCS No. column
+        }
+      }
+
+      // Counters & lists
+      let dailyCount = 0, weeklyCount = 0, monthlyCount = 0;
+      let dailyList = [], weeklyList = [], monthlyList = [];
+
+      // Build each train row
+      for (let t = 1; t <= 38; t++) {
+        const trainId = "T" + String(t).padStart(2, "0");
+        let rowHTML = `<tr><td>${trainId}</td>`;
+
+        dates.forEach((d, index) => {
+          const task = trainData[trainId] ? trainData[trainId][d] || "" : "";
+
+          if (d === todayStr) {
+            if (task === "D") { dailyCount++; dailyList.push(trainId); }
+            else if (task === "W") { weeklyCount++; weeklyList.push(trainId); }
+            else if (task.toUpperCase().includes("M")) { monthlyCount++; monthlyList.push(trainId); }
+          }
+
+          let cls = "";
+          if (task === "D") cls = "daily";
+          else if (task === "W") cls = "weekly";
+          else if (task.toUpperCase().includes("M")) cls = "monthly";
+
+          // Add today-column class if this is today's cell
+          if (d === todayStr) {
+            cls += " today-column";
+          }
+
+          rowHTML += `<td class="${cls}">${task}</td>`;
+        });
+
+        rowHTML += "</tr>";
+        body.innerHTML += rowHTML;
+      }
+
+      // Update summary cards
+      document.getElementById("dailyToday").innerText = dailyCount;
+      document.getElementById("weeklyToday").innerText = weeklyCount;
+      document.getElementById("monthlyToday").innerText = monthlyCount;
+
+      document.getElementById("dailyTrains").innerText = dailyList.join(", ") || "-";
+      document.getElementById("weeklyTrains").innerText = weeklyList.join(", ") || "-";
+      document.getElementById("monthlyTrains").innerText = monthlyList.join(", ") || "-";
+      
+      // Scroll to today's column if it exists
+      if (todayColumnIndex !== -1) {
+        setTimeout(() => {
+          const tableContainer = document.querySelector('.maintenance-table');
+          const todayCell = tableContainer.querySelector(`th:nth-child(${todayColumnIndex + 1})`);
+          if (todayCell) {
+            todayCell.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          }
+        }, 100);
+      }
+    }
+
+    // Get user info from localStorage or URL parameters
+    function getUrlParameter(name) {
+      name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+      const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+      const results = regex.exec(location.search);
+      return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+    }
+
+    // Set user info on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      const name = localStorage.getItem('userFullName') || 
+                  getUrlParameter('name') || 
+                  localStorage.getItem('maintenanceUser') || 
+                  'Guest';
+                  
+      const position = localStorage.getItem('userActualPosition') || 
+                      getUrlParameter('position') || 
+                      localStorage.getItem('userPosition') || 
+                      'Maintenance Staff';
+      
+      document.getElementById('loggedInName').textContent = name;
+      document.getElementById('loggedInPosition').textContent = position;
+      
+      // Load data after setting user info
+      loadData();
+      
+      // Add refresh button functionality
+      document.getElementById('refreshBtn').addEventListener('click', loadData);
+    });
+  </script>
+</body>
+</html>

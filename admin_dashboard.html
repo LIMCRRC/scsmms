@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCS Train Mileage Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="styles-tech_maintenance.css">
+    <!-- Add Chart.js for visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+
+
+    <style>
+    /* Consolidated styling for all dropdowns in the date filter section */
+    .date-filter-controls select {
+        font-size: 0.75em;       /* consistent smaller text */
+        padding: 3px 6px;        /* consistent padding */
+        border-radius: 4px;      /* consistent rounded corners */
+        border: 1px solid #ddd;  /* consistent border */
+        height: 26px;            /* consistent height */
+        margin-right: 5px;       /* consistent spacing */
+    }
+    
+    /* Date filter controls container */
+    .date-filter-controls {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 5px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+    }
+    
+    .date-filter-label {
+        font-size: 0.75em;
+        color: #666;
+        white-space: nowrap;
+    }
+    
+    /* Remove individual styles that might conflict */
+    .month-selector {
+        margin-right: 0;
+    }
+    
+    /* Original styles below remain unchanged */
+    .history-table {
+        overflow-x: auto;
+    }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f8f9fa;
+            position: sticky;
+            top: 0;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .pagination-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+        }
+        .btn {
+            padding: 8px 16px;
+            margin: 0 5px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .btn:hover {
+            background-color: #e9ecef;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .header-controls {
+            display: flex;
+            align-items: center;
+        }
+        .form-control {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            margin-right: 10px;
+        }
+/* Editable table cells styling */
+.editable-cell {
+    border: none;           /* remove box border */
+    background: transparent; /* remove background */
+    width: 100%;            /* full width of the cell */
+    font-size: 1em;      /* slightly smaller text */
+    padding: 2px 4px;       /* small padding */
+    outline: none;          /* remove focus outline */
+    text-align: left;       /* align text like normal table */
+    box-shadow: none;       /* remove any shadow */
+}
+
+
+/* Optional: highlight on focus */
+.editable-cell:focus {
+    background-color: rgba(0, 123, 255, 0.1); /* subtle highlight */
+}
+/* Make all table text smaller to fit content */
+.history-table table {
+    font-size: 0.75em;  /* smaller text */
+}
+
+/* Enable text wrap in header cells */
+.history-table th {
+    white-space: normal;      /* allow wrapping */
+    word-break: break-word;   /* break long words if needed */
+    line-height: 1.2em;       /* tighter line spacing */
+    font-size: 1em;        /* match smaller table font */
+    padding: 4px 6px;         /* small padding */
+    text-align: left;          /* align header text */
+}
+
+.history-table td {
+    padding: 4px 6px;   /* reduce padding for tighter layout */
+    white-space: nowrap; /* keep text in one line */
+}
+
+/* Optional: make inputs blend with smaller table */
+.history-table .editable-cell {
+    font-size: 1em;
+    padding: 1px 2px;
+}
+/* Highlight rows that have been edited */
+.row-edited {
+    background-color: rgba(255, 235, 59, 0.3); /* soft yellow highlight */
+    transition: background-color 0.3s;
+}
+    </style>
+</head>
+<body>
+ <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading data...</div>
+  </div>
+
+  <!-- Sidebar Options -->
+  <div class="options-sidebar">
+    <div class="sidebar-header">
+      <h2>SCS Dashboard</h2>
+    </div>
+
+    <div class="user-info">
+      <div class="user-avatar">
+        <i class="fas fa-user-circle"></i>
+      </div>
+      <div class="user-details">
+        <div class="user-name" id="loggedInName">Loading...</div>
+        <div class="user-position" id="loggedInPosition">Loading...</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <ul class="options-list">
+        <li class="option-item">
+          <a href="#" class="option-btn" id="refreshBtn">
+            <i class="fas fa-sync-alt"></i>
+            <span>Refresh Data</span>
+          </a>
+        </li>
+        <li class="option-item">
+          <a href="index.html" class="option-btn">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Logout</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Information Section -->
+    <div class="sidebar-section">
+      <div class="section-header">
+        <i class="fas fa-info-circle"></i>
+        <h3>Information</h3>
+      </div>
+      <ul class="options-list">
+        <li class="option-item"><a href="1-overview.html" class="option-btn"><i class="fas fa-home"></i><span>Overview</span></a></li>
+        <li class="option-item"><a href="2-completion.html" class="option-btn"><i class="fas fa-check-circle"></i><span>Completion</span></a></li>
+        <li class="option-item"><a href="3-mileage.html" class="option-btn active"><i class="fas fa-road"></i><span>Train Mileage</span></a></li>
+        <li class="option-item"><a href="4-failure.html" class="option-btn"><i class="fas fa-exclamation-triangle"></i><span>Mainline Failure</span></a></li>
+        <li class="option-item"><a href="5-unscheduled.html" class="option-btn"><i class="fas fa-calendar-times"></i><span>Unscheduled</span></a></li>
+      </ul>
+    </div>
+
+    <!-- Status Section -->
+    <div class="sidebar-section">
+      <div class="section-header">
+        <i class="fas fa-clipboard-list"></i>
+        <h3>Status</h3>
+      </div>
+      <ul class="options-list">
+        <li class="option-item"><a href="window.html" class="option-btn"><i class="fas fa-window-maximize"></i><span>Window Glass</span></a></li>
+        <li class="option-item"><a href="hvac.html" class="option-btn"><i class="fas fa-fan"></i><span>HVAC</span></a></li>
+        <li class="option-item"><a href="aps.html" class="option-btn"><i class="fas fa-door-open"></i><span>APS</span></a></li>
+        <li class="option-item"><a href="traction.html" class="option-btn"><i class="fas fa-bolt"></i><span>Traction</span></a></li>
+<li class="option-item collapsible">
+  <a href="#" class="option-btn collapse-btn">
+    <i class="fas fa-cogs"></i>
+    <span>Bogie</span>
+    <i class="fas fa-chevron-down toggle-icon" style="margin-left:auto;"></i>
+  </a>
+  <ul class="submenu">
+    <li class="option-item">
+      <a href="bogie_wheelset.html" class="option-btn">
+        <i class="fas fa-circle"></i><span>Wheelset</span>
+      </a>
+    </li>
+    <li class="option-item">
+      <a href="bogie_parts.html" class="option-btn">
+        <i class="fas fa-tools"></i><span>Parts</span>
+      </a>
+    </li>
+  </ul>
+</li>
+        <li class="option-item"><a href="lighting.html" class="option-btn"><i class="fas fa-lightbulb"></i><span>Lighting</span></a></li>
+        <li class="option-item"><a href="pis.html" class="option-btn"><i class="fas fa-bullhorn"></i><span>PIS</span></a></li>
+        <li class="option-item"><a href="brake.html" class="option-btn"><i class="fas fa-stop-circle"></i><span>Brake</span></a></li>
+      </ul>
+    </div>
+  </div>
+<div class="main-content">
+    <div class="operation-header">
+        <h1><i class="fas fa-road"></i> Train Mileage Dashboard</h1>
+    </div>
+    
+    <p class="welcome-text">
+        Visual analysis of train mileage data. Last updated: <span id="currentDateTime"></span>
+    </p>
+        
+        <!-- Quick Stats Cards -->
+        <div class="quick-actions">
+            <div class="action-card" id="highestMileageCard">
+                <i class="fas fa-arrow-up"></i>
+                <h3>Highest Mileage</h3>
+                <p id="highestMileageValue">Loading...</p>
+            </div>
+            <div class="action-card" id="lowestMileageCard">
+                <i class="fas fa-arrow-down"></i>
+                <h3>Lowest Mileage</h3>
+                <p id="lowestMileageValue">Loading...</p>
+            </div>
+            <div class="action-card" id="avgMileageCard">
+                <i class="fas fa-calculator"></i>
+                <h3>Average Mileage</h3>
+                <p id="avgMileageValue">Loading...</p>
+            </div>
+            <div class="action-card" id="totalMileageCard">
+                <i class="fas fa-road"></i>
+                <h3>Total Fleet Mileage</h3>
+                <p id="totalMileageValue">Loading...</p>
+            </div>
+        </div>
+
+        <!-- Bar Chart for Latest Mileage -->
+<div class="card">
+    <div class="card-header">
+        <h2><i class="fas fa-chart-bar"></i> Latest Mileage by Train Set</h2>
+    </div>
+    <div class="card-body">
+        <canvas id="mileageChart" height="100"></canvas>
+    </div>
+</div>
+
+<!-- Line Chart for Mileage Trend -->
+<div class="card" style="margin-top:20px;">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="margin: 0;"><i class="fas fa-chart-line"></i> Train Mileage Trend</h2>
+        <div class="date-filter-controls" style="margin-bottom: 0;">
+            <span class="date-filter-label">From:</span>
+            <select id="startMonthSelect" class="form-control" style="width: auto;"></select>
+            <span class="date-filter-label">To:</span>
+            <select id="endMonthSelect" class="form-control" style="width: auto;"></select>
+            <select id="trainSelect" class="form-control" style="width: auto;"></select>
+        </div>
+    </div>
+    <div class="card-body">
+        <canvas id="trendChart" height="100"></canvas>
+    </div>
+</div>
+
+        <!-- Detailed Data Table -->
+       <div class="card">
+    <div class="card-header">
+        <h2><i class="fas fa-table"></i> Train Maintenance Records</h2>
+    </div>
+    <div class="history-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Train Set</th>
+                    <th>Taking-Over Date</th>
+                    <th>Taking-Over Mileage (km)</th>
+                    <th>Status</th>
+                    <th>Detained/Non-active Date</th>
+                    <th>Resume Date</th>
+                    <th>Remarks</th>
+                    <th>LastUpdated</th>
+                    <th>Latest Mileage (km)</th>
+                    <th>Mileage Before L4/Wdiscing (km)</th>
+                    <th>Post-L4 /Wdiscing Cycle Initial Mileage (km)</th>
+		    <th>Post-L4/Wdiscing Cumulative Mileage (km)</th>
+                    <th>Years of Operation</th>
+                    <th>Month of Operation</th>
+                    <th>Avg. Mileage/Month</th>
+                    <th>Avg. Mileage/Day</th>
+                </tr>
+            </thead>
+            <tbody id="mileageTableBody">
+                <!-- Will be populated by JavaScript -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+    <script src="3-mileage.js"></script>
+</body>
+</html>
