@@ -622,7 +622,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (!user) {
         // Redirect if no user is found
-        window.location.href = 'login.html';
+        window.location.href = 'index.html';
     } else {
         const nameElement = document.getElementById('loggedInName');
         const positionElement = document.getElementById('loggedInPosition');
@@ -634,7 +634,7 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.setItem('maintenanceUser', user);
     }
 
-document.querySelector('a[href="login.html"]').addEventListener('click', () => {
+document.querySelector('a[href="index.html"]').addEventListener('click', () => {
     localStorage.clear(); // Clears user and role info
 });
     
