@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mainline Failure</title>
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="styles-tech_maintenance.css">
+
+  <!-- Chart.js DataLabels Plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+
+  <style>
+    /* Compact Chart Containers */
+    .chart-container {
+      width: 90%;
+      max-width: 600px;
+      height: 300px;
+      margin: 20px auto;
+    }
+    /* Optional: Adjust summary cards for better spacing */
+    .dashboard-stats .action-card {
+      flex: 1;
+      min-width: 150px;
+      margin: 10px;
+    }
+    .tab-controls { display:flex; gap:10px; margin:10px 0; }
+    .tab-btn { padding:8px 16px; border:none; background:#eee; cursor:pointer; border-radius:6px; }
+    .tab-btn.active { background:#007bff; color:#fff; }
+    
+    /* Enhanced Form Styles */
+    .data-form {
+      background: white;
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-section {
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .form-section:last-of-type {
+      border-bottom: none;
+    }
+    
+    .section-title {
+      font-size: 1rem;
+      color: var(--primary-dark);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .section-title i {
+      color: var(--primary);
+    }
+    
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .form-group label {
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-bottom: 0.4rem;
+      color: var(--dark);
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      padding: 0.6rem 0.8rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      transition: var(--transition);
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(43, 108, 176, 0.2);
+    }
+    
+    .form-group textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+    
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.8rem;
+      margin-top: 1rem;
+    }
+    
+    .btn {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background-color: var(--primary-dark);
+    }
+    
+    .btn-secondary {
+      background-color: #e2e8f0;
+      color: var(--dark);
+    }
+    
+    .btn-secondary:hover {
+      background-color: #cbd5e0;
+    }
+    
+    .form-message {
+      margin-top: 1rem;
+      padding: 0.8rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+    
+    .form-message.success {
+      background-color: rgba(56, 161, 105, 0.1);
+      color: var(--accent1);
+      border: 1px solid rgba(56, 161, 105, 0.3);
+    }
+    
+    .form-message.error {
+      background-color: rgba(229, 62, 62, 0.1);
+      color: var(--secondary);
+      border: 1px solid rgba(229, 62, 62, 0.3);
+    }
+    
+    .required::after {
+      content: " *";
+      color: var(--secondary);
+    }
+    
+    /* ADDED: Margin below the "Add New Failure Record" heading */
+    #dataInputSection h2 {
+      margin-bottom: 1.5rem;
+    }
+    
+    @media (max-width: 768px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading failure data...</div>
+</div>   
+
+<!-- Records Modal -->
+<div id="recordsModal" class="confirmation-dialog" style="display:none;">
+  <div class="dialog-content" style="
+      width: 95%;          /* wider width */
+      max-width: 1200px;   /* max width */
+      max-height: 80vh;    /* max height */
+      margin: auto;
+      padding: 20px;
+      border-radius: 10px;
+      background: #fff;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+  ">
+    <div class="dialog-message"><strong>Records:</strong></div>
+    <div id="recordsTableContainer" class="history-table" style="
+        overflow-x: scroll;    /* always show horizontal scroll */
+        overflow-y: auto;      /* vertical scroll */
+        flex: 1;               /* take remaining space */
+    ">
+      <table style="border-collapse: collapse; width: max-content;">
+        <thead id="recordsTableHead" style="position: sticky; top: 0; background: #f0f0f0; z-index: 2;"></thead>
+        <tbody id="recordsTableBody"></tbody>
+      </table>
+    </div>
+    <div class="dialog-pagination" style="margin-top:10px; text-align:right;">
+      <button id="prevPageBtn" class="btn btn-secondary">Previous</button>
+      <span id="pageInfo"></span>
+      <button id="nextPageBtn" class="btn btn-secondary">Next</button>
+    </div>
+    <div class="dialog-buttons" style="margin-top:10px; text-align:center;">
+      <button class="btn btn-secondary" onclick="closeRecordsModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+ <!-- Sidebar Options -->
+    <div class="options-sidebar">
+        <div class="sidebar-header">
+            <h2>SCS Dashboard</h2>
+        </div>
+        
+        <div class="user-info">
+            <div class="user-avatar">
+                <i class="fas fa-user-circle"></i>
+            </div>
+            <div class="user-details">
+                <div class="user-name" id="loggedInName">Loading...</div>
+                <div class="user-position" id="loggedInPosition">Loading...</div>
+            </div>
+        </div>
+        
+        <div class="sidebar-section">
+            <ul class="options-list">
+                <li class="option-item">
+                    <a href="#" class="option-btn" id="refreshBtn">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>Refresh Data</span>
+                    </a>
+                </li>
+                <li class="option-item">
+                    <a href="index.html" class="option-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+    <div class="sidebar-section">
+      <div class="section-header">
+        <i class="fas fa-tools"></i>
+        <h3>Maintenance</h3>
+      </div>
+      
+      <ul class="options-list">
+        <li class="option-item">
+          <a href="#" class="option-btn" id="dashboardBtn">
+            <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
+          </a>
+        </li>
+
+        <li class="option-item">
+          <a href="mileage.html" class="option-btn">
+            <i class="fas fa-calendar-check"></i><span>Mileage</span>
+          </a>
+        </li>
+
+        <li class="option-item">
+          <a href="plan-view.html" class="option-btn">
+            <i class="fas fa-calendar-check"></i><span>Plan</span>
+          </a>
+        </li>
+
+        <li class="option-item">
+            <a href="completion.html" class="option-btn" id="completionSummaryBtn">
+              <i class="fas fa-clipboard-check"></i><span>Maint. Completion</span>
+            </a>
+        </li>
+
+        <li class="option-item">
+            <a href="failure.html" class="option-btn active" id="failureSummaryBtn">
+              <i class="fas fa-exclamation-triangle"></i><span>Failure</span>
+            </a>
+        </li>
+
+        <li class="option-item">
+            <a href="#" class="option-btn" id="unscheduledSummaryBtn">
+              <i class="fas fa-wrench"></i><span>Uns. Maintenance</span>
+            </a>
+        </li>
+
+        <li class="option-item">
+            <a href="#" class="option-btn" id="warrantySummaryBtn">
+              <i class="fas fa-file-contract"></i><span>Warranty</span>
+            </a>
+        </li>
+      </ul>
+    </div>
+    </div>
+
+  <!-- Main -->
+   <div class="main-content">
+    <div class="operation-header">
+      <h1><i class="fas fa-calendar-alt"></i> Mainline Failure</h1>
+    </div>
+    <p class="welcome-text">Overview of mainline failure for all train sets. Today: <span id="todayDate"></span></p>
+    
+    <!-- Tab Controls -->
+    <div class="tab-controls">
+      <button id="tabInfo" class="tab-btn active">Info</button>
+      <button id="tabInput" class="tab-btn">Failure Data Input</button>
+    </div>
+
+    <!-- Failure Data Input (initially hidden) -->
+    <div id="dataInputSection" style="display:none; margin-top:20px;">
+      <h2><i class="fas fa-plus-circle"></i> Add New Failure Record</h2>
+      
+      <form id="failureForm" class="data-form">
+        <!-- Basic Information Section -->
+        <div class="form-section">
+          <h3 class="section-title"><i class="fas fa-info-circle"></i> Basic Information</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="required">Year</label>
+              <input type="text" name="Year" required>
+            </div>
+            <div class="form-group">
+  <label class="required">Period</label>
+  <input type="text" name="Period" placeholder="e.g. Aug-24" required>
+</div>
+            <div class="form-group">
+              <label class="required">Fault</label>
+              <select name="Fault" required>
+                <option value="">Select Fault Type</option>
+                <option value="Major">Major</option>
+                <option value="Minor">Minor</option>
+                <option value="Omitted">Omitted</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="required">Date</label>
+              <input type="date" name="Date" required>
+            </div>
+            <div class="form-group">
+              <label class="required">Train</label>
+              <input type="text" name="Train" placeholder="e.g., T05" required>
+            </div>
+            <div class="form-group">
+              <label class="required">System</label>
+              <input type="text" name="System" placeholder="e.g., Traction" required>
+            </div>
+            <div class="form-group">
+              <label>Location</label>
+              <input type="text" name="Location">
+            </div>
+            <div class="form-group">
+              <label>CAR</label>
+              <input type="text" name="CAR">
+            </div>
+          </div>
+        </div>
+        
+        <!-- Failure Details Section -->
+        <div class="form-section">
+          <h3 class="section-title"><i class="fas fa-exclamation-triangle"></i> Failure Details</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>HMI/DMI Message</label>
+              <textarea name="HMI/DMI Message"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Remarks From KTMB</label>
+              <textarea name="Remarks From KTMB"></textarea>
+            </div>
+            <div class="form-group">
+              <label>TCCC Mainline Report</label>
+              <textarea name="TCCC Mainline Report"></textarea>
+            </div>
+            <div class="form-group">
+              <label>English Translation</label>
+              <textarea name="English Translation"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Action Taken</label>
+              <textarea name="Action taken"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Root Cause</label>
+              <textarea name="Root cause"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Component Defect</label>
+              <textarea name="Component Defect"></textarea>
+            </div>
+            <div class="form-group">
+              <label>System Defect</label>
+              <textarea name="System Defect"></textarea>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Status and Resolution Section -->
+        <div class="form-section">
+          <h3 class="section-title"><i class="fas fa-clipboard-check"></i> Status and Resolution</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Status</label>
+              <select name="Status">
+                <option value="">Select Status</option>
+                <option value="Open">Open</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Resolved">Resolved</option>
+                <option value="Closed">Closed</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Close Date</label>
+              <input type="date" name="Close date">
+            </div>
+            <div class="form-group">
+              <label>Work Order No</label>
+              <input type="text" name="Work Order No">
+            </div>
+            <div class="form-group">
+              <label>CCU/ATP Data</label>
+              <textarea name="CCU/ATP Data"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Committee Decision</label>
+              <textarea name="Committee Decision"></textarea>
+            </div>
+            <div class="form-group">
+              <label>HB</label>
+              <input type="text" name="HB">
+            </div>
+            <div class="form-group">
+              <label>HO</label>
+              <input type="text" name="HO">
+            </div>
+          </div>
+        </div>
+        
+        <!-- Analysis and Planning Section -->
+        <div class="form-section">
+          <h3 class="section-title"><i class="fas fa-chart-line"></i> Analysis and Planning</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Main Issue of Failure</label>
+              <textarea name="Main Issue of Failure"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Action Plan</label>
+              <textarea name="Action Plan"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Preventive Examination (PE)</label>
+              <textarea name="Preventive Examination (PE)"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Remark</label>
+              <textarea name="Remark"></textarea>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Form Actions -->
+        <div class="form-actions">
+          <button type="reset" class="btn btn-secondary">Reset Form</button>
+          <button type="submit" class="btn btn-primary">Submit Record</button>
+        </div>
+        
+        <div id="formMessage"></div>
+      </form>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="dashboard-stats">
+      <div class="action-card" id="cardMajor"><div class="stat-label">Total Major Failure</div><div class="stat-value" id="MajorFailure">0</div></div>
+      <div class="action-card" id="cardMinor"><div class="stat-label">Total Minor Failure</div><div class="stat-value" id="MinorFailure">0</div></div>
+      <div class="action-card" id="cardOmitted"><div class="stat-label">Total Omitted</div><div class="stat-value" id="OmittedFailure">0</div></div>
+    </div>
+
+    <!-- Period Filter -->
+    <div class="filter-section">
+      <label for="periodFilter"><i class="fas fa-calendar"></i> Select Period:</label>
+      <select id="periodFilter">
+        <option value="all">All</option>
+      </select>
+    </div>
+
+    <!-- Failures by Train -->
+    <div class="card" style="margin-top:50px;">
+      <div class="card-header">
+        <h2><i class="fas fa-chart-bar"></i> Failures by Train</h2>
+        <div class="chart-filters">
+          <label><input type="checkbox" class="faultFilter" data-chart="failuresByTrain" value="Major" checked> Major</label>
+          <label><input type="checkbox" class="faultFilter" data-chart="failuresByTrain" value="Minor" checked> Minor</label>
+          <label><input type="checkbox" class="faultFilter" data-chart="failuresByTrain" value="Omitted" checked> Omitted</label>
+        </div>
+      </div>
+      <div class="card-body"><canvas id="failuresByTrain" height="300"></canvas></div>
+    </div>
+
+    <!-- Failures by System -->
+    <div class="card" style="margin-top:50px;">
+      <div class="card-header">
+        <h2><i class="fas fa-chart-bar"></i> Failures by System</h2>
+        <div class="chart-filters">
+          <label><input type="checkbox" class="faultFilter" data-chart="failuresBySystem" value="Major" checked> Major</label>
+          <label><input type="checkbox" class="faultFilter" data-chart="failuresBySystem" value="Minor" checked> Minor</label>
+          <label><input type="checkbox" class="faultFilter" data-chart="failuresBySystem" value="Omitted" checked> Omitted</label>
+        </div>
+      </div>
+      <div class="card-body"><canvas id="failuresBySystem" height="300"></canvas></div>
+    </div>
+
+    <!-- Failures by Month -->
+    <div class="card" style="margin-top:50px;">
+      <div class="card-header">
+        <h2><i class="fas fa-chart-bar"></i> Failures by Month</h2>
+        <div class="chart-filters">
+          <label><input type="checkbox" class="faultFilter" data-chart="failuresByMonth" value="Major" checked> Major</label>
+          <label><input type="checkbox" class="faultFilter" data-chart="failuresByMonth" value="Minor" checked> Minor</label>
+          <label><input type="checkbox" class="faultFilter" data-chart="failuresByMonth" value="Omitted" checked> Omitted</label>
+        </div>
+      </div>
+      <div class="card-body"><canvas id="failuresByMonth" height="300"></canvas></div>
+    </div>
+
+    <!-- Total Failures by Train Historical -->
+    <div class="card" style="margin-top:50px;">
+      <div class="card-header">
+        <h2><i class="fas fa-chart-bar"></i> Total Failures by Train</h2>
+        <div class="chart-filters">
+          <label><input type="checkbox" class="faultFilter" data-chart="failuresByTrainHistorical" value="Major" checked> Major</label>
+          <label><input type="checkbox" class="faultFilter" data-chart="failuresByTrainHistorical" value="Minor" checked> Minor</label>
+          <label><input type="checkbox" class="faultFilter" data-chart="failuresByTrainHistorical" value="Omitted" checked> Omitted</label>
+        </div>
+      </div>
+      <div class="card-body"><canvas id="failuresByTrainHistorical" height="300"></canvas></div>
+    </div>
+
+    <!-- External JavaScript file -->
+    <script src="failure.js"></script>
+    
+    <style>
+      /* Style to make disabled links look unclickable */
+      .option-btn.disabled {
+        pointer-events: none;  /* prevents clicking */
+        opacity: 0.5;          /* makes it look inactive */
+        cursor: not-allowed;
+      }
+    </style>
+
+    <script>
+      // Check if current page is maintenance.html
+      if (window.location.pathname.includes("maintenance.html")) {
+        document.querySelectorAll(".option-btn.disabled").forEach(btn => {
+          btn.classList.remove("disabled");
+          btn.removeAttribute("onclick"); // just in case
+        });
+      }
+    </script>
+  </div>
+</body>
+</html>

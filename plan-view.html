@@ -5,11 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Maintenance Plan</title>
 
-  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <script src="https://kit.fontawesome.com/a2d9d6a4d4.js" crossorigin="anonymous"></script>
 
-  <!-- Custom Styles -->
   <link rel="stylesheet" href="styles-tech_maintenance.css">
 
   <style>
@@ -125,44 +123,6 @@
       font-weight: bold;
     }
     
-    /* History Table */
-    .history-section {
-      margin-top: 2rem;
-      padding-top: 1rem;
-      border-top: 1px solid #e2e8f0;
-    }
-    
-    .history-section h2 {
-      font-size: 1.2rem;
-      color: #2c5282;
-      margin-bottom: 1rem;
-    }
-    
-    .history-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 0.5rem;
-      font-size: 0.8rem;
-    }
-    
-    .history-table th,
-    .history-table td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: center;
-    }
-    
-    .history-table th {
-      background-color: #f1f3f4;
-      font-weight: bold;
-      position: sticky;
-      top: 0;
-    }
-    
-    .history-table tr:nth-child(even) {
-      background-color: #fafafa;
-    }
-     
     /* Loading Overlay */
     .loading-overlay {
       position: fixed;
@@ -200,46 +160,43 @@
 </head>
 
 <body>
-  <!-- Loading Overlay -->
   <div id="loadingOverlay" class="loading-overlay" style="display: none;">
     <div class="loading-spinner"></div>
     <div class="loading-text">Loading data...</div>
   </div>
 
-  <!-- Sidebar Options -->
   <div class="options-sidebar">
-    <div class="sidebar-header">
-      <h2>SCS Dashboard</h2>
-    </div>
+        <div class="sidebar-header">
+            <h2>SCS Dashboard</h2>
+        </div>
+        
+        <div class="user-info">
+            <div class="user-avatar">
+                <i class="fas fa-user-circle"></i>
+            </div>
+            <div class="user-details">
+                <div class="user-name" id="loggedInName">Loading...</div>
+                <div class="user-position" id="loggedInPosition">Loading...</div>
+            </div>
+        </div>
+        
+        <div class="sidebar-section">
+            <ul class="options-list">
+                <li class="option-item">
+                    <a href="#" class="option-btn" id="refreshBtn">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>Refresh Data</span>
+                    </a>
+                </li>
+                <li class="option-item">
+                    <a href="index.html" class="option-btn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
 
-    <div class="user-info">
-      <div class="user-avatar">
-        <i class="fas fa-user-circle"></i>
-      </div>
-      <div class="user-details">
-        <div class="user-name" id="loggedInName">Loading...</div>
-        <div class="user-position" id="loggedInPosition">Loading...</div>
-      </div>
-    </div>
-
-    <div class="sidebar-section">
-      <ul class="options-list">
-        <li class="option-item">
-          <a href="#" class="option-btn" id="refreshBtn">
-            <i class="fas fa-sync-alt"></i>
-            <span>Refresh Data</span>
-          </a>
-        </li>
-        <li class="option-item">
-          <a href="index.html" class="option-btn">
-            <i class="fas fa-sign-out-alt"></i>
-            <span>Logout</span>
-          </a>
-        </li>
-      </ul>
-    </div>
-
-    <!-- Maintenance Section -->
     <div class="sidebar-section">
       <div class="section-header">
         <i class="fas fa-tools"></i>
@@ -248,50 +205,55 @@
       
       <ul class="options-list">
         <li class="option-item">
-          <a href="tech_maintenance.html" class="option-btn" id="dashboardBtn">
+          <a href="#" class="option-btn" id="dashboardBtn">
             <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
           </a>
         </li>
 
         <li class="option-item">
-          <a href="plan.html" class="option-btn active">
+          <a href="mileage.html" class="option-btn">
+            <i class="fas fa-calendar-check"></i><span>Mileage</span>
+          </a>
+        </li>
+
+        <li class="option-item">
+          <a href="plan-view.html" class="option-btn active">
             <i class="fas fa-calendar-check"></i><span>Plan</span>
           </a>
         </li>
 
-        <li class="option-item-label" style="padding: 10px 15px; font-size: 0.8em; color: #888; text-transform: uppercase; font-weight: bold;">
-          Maintenance Work
-        </li>
-        
         <li class="option-item">
-          <a href="tech_maintenance.html#handOverView" class="option-btn" id="handOverBtn">
-            <i class="fas fa-sign-in-alt"></i><span>Hand-Over</span>
-          </a>
+            <a href="completion.html" class="option-btn" id="completionSummaryBtn">
+              <i class="fas fa-clipboard-check"></i><span>Maint. Completion</span>
+            </a>
         </li>
-        
+
         <li class="option-item">
-          <a href="tech_maintenance.html#handBackView" class="option-btn" id="handBackBtn">
-            <i class="fas fa-sign-out-alt"></i><span>Hand-Back</span>
-          </a>
+            <a href="#" class="option-btn" id="failureSummaryBtn">
+              <i class="fas fa-exclamation-triangle"></i><span>Failure</span>
+            </a>
         </li>
-        
+
         <li class="option-item">
-          <a href="tech_maintenance.html#historyView" class="option-btn" id="historyBtn">
-            <i class="fas fa-history"></i><span>History</span>
-          </a>
+            <a href="#" class="option-btn" id="unscheduledSummaryBtn">
+              <i class="fas fa-wrench"></i><span>Uns. Maintenance</span>
+            </a>
+        </li>
+
+        <li class="option-item">
+            <a href="#" class="option-btn" id="warrantySummaryBtn">
+              <i class="fas fa-file-contract"></i><span>Warranty</span>
+            </a>
         </li>
       </ul>
     </div>
-  </div>
-
-  <!-- Main -->
+    </div>
   <div class="main-content">
     <div class="operation-header">
       <h1><i class="fas fa-calendar-alt"></i> Maintenance Plan</h1>
     </div>
     <p class="welcome-text">Overview of scheduled maintenance for all train sets. Today: <span id="todayDate"></span></p>
 
-    <!-- Summary Cards -->
     <div class="quick-actions">
       <div class="action-card" id="dailyCard">
         <h3>Daily Maintenance</h3>
@@ -310,7 +272,6 @@
       </div>
     </div>
 
-    <!-- Maintenance Table -->
     <div class="maintenance-table">
       <table>
         <thead><tr></tr></thead>
@@ -318,23 +279,6 @@
       </table>
     </div>
     
-    <!-- History Record Table -->
-    <div class="history-section">
-      <h2><i class="fas fa-history"></i> Maintenance History Record</h2>
-      <table class="history-table">
-        <thead>
-          <tr>
-            <th>Train No.</th>
-            <th>Last Maintenance Type</th>
-            <th>Last Maintenance Date</th>
-            <th>Days Since Last Maintenance</th>
-          </tr>
-        </thead>
-        <tbody id="historyTableBody">
-          <!-- Will be populated by JavaScript -->
-        </tbody>
-      </table>
-    </div>
   </div>
 
   <script>
@@ -361,7 +305,6 @@
       return `${y}-${m}-${d}`;
     }
 
-    // Format date as dd-mmm-yyyy (e.g., 03-Sep-2025)
     function formatDateDisplay(date) {
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -371,109 +314,6 @@
       return `${day}-${month}-${year}`;
     }
 
-    // Calculate days between two dates
-    function daysBetween(date1, date2) {
-      const oneDay = 24 * 60 * 60 * 1000; // hours*minutes*seconds*milliseconds
-      const firstDate = new Date(date1);
-      const secondDate = new Date(date2);
-      return Math.round(Math.abs((firstDate - secondDate) / oneDay));
-    }
-
-    // Generate mock history data (replace with real data from your API)
-    function generateHistoryData(trainData) {
-      const today = new Date();
-      const historyData = [];
-      
-      for (let t = 1; t <= 38; t++) {
-        const trainId = "T" + String(t).padStart(2, "0");
-        
-        // Find the last maintenance date and type for this train
-        let lastMaintenanceDate = null;
-        let lastMaintenanceType = "None";
-        let daysSince = "Unknown"; // Default to Unknown
-        
-        if (trainData[trainId]) {
-          // Get all dates for this train and sort them in descending order
-          const dates = Object.keys(trainData[trainId]).sort((a, b) => {
-            return new Date(b) - new Date(a);
-          });
-          
-          // Find the most recent maintenance date that is today or in the past
-          for (const date of dates) {
-            const task = trainData[trainId][date];
-            const taskDate = new Date(date);
-            
-            if (taskDate <= today && task) {
-              lastMaintenanceDate = date;
-              lastMaintenanceType = task;
-              break;
-            }
-          }
-        }
-        
-// Handle cases where maintenance is found vs not found
-        if (lastMaintenanceDate) {
-           // Calculate days since if we actually have a date
-           daysSince = daysBetween(lastMaintenanceDate, formatDate(today));
-        } else {
-           // If undetectable, explicitly set to Unknown
-           lastMaintenanceDate = "Unknown";
-           lastMaintenanceType = "Unknown";
-           daysSince = "Unknown";
-        }
-        
-        historyData.push({
-          trainId,
-          lastMaintenanceType,
-          lastMaintenanceDate,
-          daysSince
-        });
-      }
-      
-      return historyData;
-    }
-
- // Build the history table
-    function buildHistoryTable(historyData) {
-      const tableBody = document.getElementById("historyTableBody");
-      tableBody.innerHTML = "";
-      
-      historyData.forEach(item => {
-        const row = document.createElement("tr");
-        
-        // Apply styling based on days since last maintenance
-        let rowClass = "";
-        
-        // Only check for overdue/warning if daysSince is actually a number
-        if (typeof item.daysSince === 'number') {
-            if (item.daysSince > 30) {
-              rowClass = "overdue";
-            } else if (item.daysSince > 20) {
-              rowClass = "warning";
-            }
-        }
-        
-        if (rowClass) {
-          row.className = rowClass;
-        }
-        
-        // Handle Date Display (Don't format if it is "Unknown")
-        let dateDisplay = item.lastMaintenanceDate;
-        if (item.lastMaintenanceDate !== "Unknown") {
-            dateDisplay = formatDateDisplay(new Date(item.lastMaintenanceDate));
-        }
-        
-        row.innerHTML = `
-          <td>${item.trainId}</td>
-          <td>${item.lastMaintenanceType}</td>
-          <td>${dateDisplay}</td>
-          <td>${item.daysSince}</td>
-        `;
-        
-        tableBody.appendChild(row);
-      });
-    }
-
 async function loadData() {
   showLoadingOverlay('Loading maintenance data...');
   try {
@@ -481,14 +321,8 @@ async function loadData() {
     const json = await res.json();
     
     if (json.status === "success") {
-      // Use json.data.matrix for the big table
       buildMatrix(json.data.matrix); 
       
-      // Use json.data.matrix for history generation
-      const historyData = generateHistoryData(json.data.matrix);
-      buildHistoryTable(historyData);
-      
-      // Manually update summary cards if buildMatrix doesn't handle them
       document.getElementById("dailyToday").innerText = json.data.summary.daily.length;
       document.getElementById("weeklyToday").innerText = json.data.summary.weekly.length;
       document.getElementById("monthlyToday").innerText = json.data.summary.monthly.length;
@@ -510,21 +344,18 @@ function buildMatrix(trainData) {
   body.innerHTML = "";
   head.innerHTML = "<th>SCS No.</th>";
 
-  // --- ADJUSTABLE DATE RANGE ---
-  const daysBefore = 14; // Number of days to show before today
-  const daysAfter = 14; // Number of days to show after today
+  const daysBefore = 14; 
+  const daysAfter = 14; 
   
   const start = new Date();
   start.setDate(today.getDate() - daysBefore);
   
   const end = new Date();
   end.setDate(today.getDate() + daysAfter);
-  // -----------------------------
 
   let dates = [];
   const todayStr = formatDate(today);
   
-  // Generate date headers
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const dateStr = formatDate(new Date(d));
     dates.push(dateStr);
@@ -536,11 +367,9 @@ function buildMatrix(trainData) {
     head.innerHTML += `<th class="${thClass}">${displayDate}</th>`;
   }
 
-  // Counters & lists for Today's summary
   let dailyCount = 0, weeklyCount = 0, monthlyCount = 0;
   let dailyList = [], weeklyList = [], monthlyList = [];
 
-  // Build each train row
   for (let t = 1; t <= 38; t++) {
     const trainId = "T" + String(t).padStart(2, "0");
     let rowHTML = `<tr><td>${trainId}</td>`;
@@ -548,7 +377,6 @@ function buildMatrix(trainData) {
     dates.forEach((d) => {
       const task = trainData[trainId] ? trainData[trainId][d] || "" : "";
 
-      // Logic for Summary Cards (only for actual today)
       if (d === todayStr) {
         if (task === "D") { dailyCount++; dailyList.push(trainId); }
         else if (task === "W") { weeklyCount++; weeklyList.push(trainId); }
@@ -571,7 +399,6 @@ function buildMatrix(trainData) {
     body.innerHTML += rowHTML;
   }
 
-  // Update summary cards
   document.getElementById("dailyToday").innerText = dailyCount;
   document.getElementById("weeklyToday").innerText = weeklyCount;
   document.getElementById("monthlyToday").innerText = monthlyCount;
@@ -579,7 +406,6 @@ function buildMatrix(trainData) {
   document.getElementById("weeklyTrains").innerText = weeklyList.join(", ") || "-";
   document.getElementById("monthlyTrains").innerText = monthlyList.join(", ") || "-";
   
-  // Auto-scroll to center "Today"
   setTimeout(() => {
     const tableContainer = document.querySelector('.maintenance-table');
     const todayCell = tableContainer.querySelector('th.today-column');
@@ -589,7 +415,6 @@ function buildMatrix(trainData) {
   }, 100);
 }
 
-    // Get user info from localStorage or URL parameters
     function getUrlParameter(name) {
       name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
       const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
@@ -597,7 +422,6 @@ function buildMatrix(trainData) {
       return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
     }
 
-    // Set user info on page load
     document.addEventListener('DOMContentLoaded', () => {
       const name = localStorage.getItem('userFullName') || 
                   getUrlParameter('name') || 
@@ -612,10 +436,8 @@ function buildMatrix(trainData) {
       document.getElementById('loggedInName').textContent = name;
       document.getElementById('loggedInPosition').textContent = position;
       
-      // Load data after setting user info
       loadData();
       
-      // Add refresh button functionality
       document.getElementById('refreshBtn').addEventListener('click', loadData);
     });
   </script>
