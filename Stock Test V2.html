@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Inventory Management</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; margin: 20px; background: #f4f7f6; color: #333; }
+    .container { max-width: 1100px; margin: auto; }
+    .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+    h3 { margin-top: 0; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+
+    /* Search & Control */
+    .control-panel { display: flex; align-items: flex-end; gap: 15px; }
+    .search-box { flex-grow: 1; }
+    input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    
+    .btn-row { display: flex; gap: 8px; }
+    button { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .btn-issue { background: #e74c3c; color: white; }
+    .btn-stockin { background: #27ae60; color: white; }
+    .btn-clear { background: #95a5a6; color: white; }
+
+    /* Tables */
+    .status-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 15px;}
+    .status-table th, .status-table td { border-bottom: 1px solid #eee; padding: 12px; text-align: left; }
+    .status-table th { background: #f8f9fa; color: #666; font-size: 13px; width: 20%; }
+    
+    .status-badge { padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; color: white; }
+    .bg-ok { background: #2ecc71; }
+    .bg-warning { background: #f1c40f; color: #333; }
+    .bg-critical { background: #e74c3c; }
+
+    /* Modal */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; }
+    .modal-content { background: white; width: 400px; margin: 50px auto; padding: 25px; border-radius: 8px; }
+    .modal-content input, .modal-content textarea { margin-bottom: 10px; width: 100%; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="card">
+    <div class="control-panel">
+      <div class="search-box">
+        <label style="font-size:12px; font-weight:bold;">Search SAP No.:</label>
+        <input list="sapList" id="sapSearch" placeholder="Enter SAP Number..." onchange="handleSelection()">
+        <datalist id="sapList"></datalist>
+      </div>
+      <div class="btn-row">
+        <button class="btn-clear" onclick="clearSearch()">Clear</button>
+        <button class="btn-issue" onclick="openModal('issue')">Record Issue</button>
+        <button class="btn-stockin" onclick="openModal('stockIn')">Stock In</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="summaryView" class="card">
+    <h3>⚠️ Low Stock Alerts</h3>
+    <div id="summaryTableContainer"></div>
+  </div>
+
+  <div id="itemDashboard" style="display:none;">
+    <div class="card">
+      <h3>Current Stock Status</h3>
+      <table class="status-table" id="statusDetailTable"></table>
+    </div>
+
+    <div class="card">
+      <h3>Stock Quantity Trend</h3>
+      <div style="height:350px;"><canvas id="trendChart"></canvas></div>
+    </div>
+
+<div class="card">
+  <h3>Recent Logs (Issues & Stock In)</h3>
+  <table class="status-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Type</th> <th>Qty</th>
+        <th>By</th>
+        <th>Remark</th>
+      </tr>
+    </thead>
+    <tbody id="logContent"></tbody>
+  </table>
+</div>
+
+<div id="txModal" class="modal">
+  <div class="modal-content">
+    <h3 id="modalTitle">Record</h3>
+    <label>SAP No:</label>
+    <input list="sapList" id="modalSap" placeholder="Search SAP No...">
+    <label>Ref No:</label>
+    <input type="text" id="modalRef" placeholder="e.g. DO-123 or Issue-456">
+    <label>Quantity:</label>
+    <input type="number" id="modalQty">
+    <label>Actual Date/Time:</label>
+    <input type="datetime-local" id="modalDate">
+    <label>Person In Charge:</label>
+    <input type="text" id="modalUser">
+    <label>Remark:</label>
+    <textarea id="modalRemark" rows="2"></textarea>
+    <div style="text-align:right;">
+      <button onclick="closeModal()">Cancel</button>
+      <button id="btnSubmit" onclick="submitTx()" style="background:#3498db; color:white;">Submit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "https://script.google.com/macros/s/AKfycbwK_svCmu36qlzP7gq7pv9SrtHieUUQ2Vlieah1ZvHWLPS7uyb4LPxKxyBkXftR3OFiyw/exec";
+let gData = { materials: [], issues: [], stockIns: [] };
+let chartObj = null;
+
+async function init() {
+  const res = await fetch(API + "?action=dashboard");
+  gData = await res.json();
+  
+  const list = document.getElementById("sapList");
+  gData.materials.forEach(m => {
+    let opt = document.createElement("option");
+    opt.value = m.SAP_Code;
+    opt.innerText = m.Material_Name;
+    list.appendChild(opt);
+  });
+  renderSummary();
+}
+
+function renderSummary() {
+  const lowStock = gData.materials.filter(m => m.status !== 'OK');
+  let html = `<table class="status-table"><tr><th>SAP No.</th><th>Material</th><th>Current Stock</th><th>Status</th></tr>`;
+  if(lowStock.length === 0) {
+    html += `<tr><td colspan="4" style="text-align:center;">All items healthy.</td></tr>`;
+  } else {
+    lowStock.forEach(m => {
+      const badge = m.status === 'EMPTY' ? 'bg-critical' : 'bg-warning';
+      html += `<tr><td>${m.SAP_Code}</td><td>${m.Material_Name}</td><td>${m.currentStock}</td><td><span class="status-badge ${badge}">${m.status}</span></td></tr>`;
+    });
+  }
+  document.getElementById("summaryTableContainer").innerHTML = html + `</table>`;
+}
+
+function handleSelection() {
+  const sap = document.getElementById("sapSearch").value;
+  const mat = gData.materials.find(m => String(m.SAP_Code) === sap);
+  if(!mat) return;
+
+  document.getElementById("summaryView").style.display = "none";
+  document.getElementById("itemDashboard").style.display = "block";
+
+  renderStatusDetail(mat);
+  renderTrend(mat);
+  renderLogs(mat.SAP_Code); // CHANGE: Pass SAP Code explicitly
+}
+
+// Enhanced Status Detail with Prediction
+function renderStatusDetail(m) {
+  const badge = m.status === 'OK' ? 'bg-ok' : (m.status === 'EMPTY' ? 'bg-critical' : 'bg-warning');
+  
+  // Calculate Forecast
+  const consumptionRate = m.Avg_Daily_Usage || 0;
+  const daysLeft = consumptionRate > 0 ? Math.floor(m.currentStock / consumptionRate) : "∞";
+  const reorderDate = m.Estimated_Repurchase_Date ? new Date(m.Estimated_Repurchase_Date).toLocaleDateString() : "TBD";
+
+  document.getElementById("statusDetailTable").innerHTML = `
+    <tr><th>Material Name</th><td><b>${m.Material_Name}</b></td><th>Current Stock</th><td><b>${m.currentStock}</b></td></tr>
+    <tr><th>SAP / Model</th><td>${m.SAP_Code} / ${m.Model || '-'}</td><th>Status</th><td><span class="status-badge ${badge}">${m.status}</span></td></tr>
+    <tr><th>Est. Days Left</th><td>${daysLeft} Days</td><th>Next Reorder</th><td><b>${reorderDate}</b></td></tr>
+    <tr><th>Consumption</th><td>${consumptionRate.toFixed(2)} / day</td><th>Lead Time</th><td>${m.Lead_Time_Days || 0} Days</td></tr>
+  `;
+}
+
+function renderTrend(mat) {
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  const mId = String(mat.SAP_Code); // CHANGE: Use SAP_Code
+  
+  const movements = [
+    // CHANGE: Filter by SAP_Code or Material_ID
+    ...gData.issues.filter(i => String(i.SAP_Code || i.Material_ID) === mId).map(i => ({ 
+      d: new Date(i.Timestamp || i.Actual_Date), 
+      q: -Number(i.Issued_Qty) 
+    })),
+    ...gData.stockIns.filter(s => String(s.SAP_Code || s.Material_ID) === mId).map(s => ({ 
+      d: new Date(s.Actual_Date), 
+      q: Number(s.In_Qty) 
+    }))
+  ].sort((a, b) => a.d - b.d);
+  
+  // ... (rest of the function logic regarding chartObj remains the same) ...
+  let currentBal = Number(mat.Initial_Stock);
+  const startPoint = mat.Initial_Stock_Date ? new Date(mat.Initial_Stock_Date) : new Date(new Date().setFullYear(new Date().getFullYear() - 1));
+  
+  const dataPoints = [{ x: startPoint, y: currentBal }];
+  
+  movements.forEach(m => {
+    if (m.d >= startPoint) {
+      currentBal += m.q;
+      dataPoints.push({ x: m.d, y: currentBal });
+    }
+  });
+  dataPoints.push({ x: new Date(), y: currentBal });
+
+  if (chartObj) chartObj.destroy();
+  chartObj = new Chart(ctx, {
+    type: 'line',
+    data: { 
+      datasets: [{ 
+        label: 'Stock Level', 
+        data: dataPoints, 
+        stepped: true,
+        borderColor: '#3498db', 
+        backgroundColor: 'rgba(52,152,219,0.1)',
+        fill: true,
+        pointRadius: 0
+      }] 
+    },
+    options: { maintainAspectRatio: false, scales: { x: { type: 'time', time: { unit: 'month' } }, y: { beginAtZero: true } } }
+  });
+}
+
+// CHANGE: Accept sapCode argument
+function renderLogs(sapCode) {
+  const searchId = String(sapCode).trim();
+  
+  const allMovements = [
+    ...gData.issues.map(i => ({...i, type: 'ISSUE', color: '#e74c3c', qty: -Number(i.Issued_Qty || 0)})),
+    ...gData.stockIns.map(s => ({...s, type: 'STOCK IN', color: '#27ae60', qty: Number(s.In_Qty || 0)}))
+  ];
+
+  const filtered = allMovements.filter(row => {
+    // CHANGE: Check SAP_Code (or Material_ID for backward compatibility)
+    const rowId = String(row.SAP_Code || row.Material_ID).trim();
+    return rowId === searchId && rowId !== "";
+  });
+
+  // ... (rest of the function remains the same: sorting and HTML generation) ...
+  filtered.sort((a, b) => new Date(b.Timestamp || b.Actual_Date) - new Date(a.Timestamp || a.Actual_Date));
+  
+  let html = filtered.slice(0, 20).map(l => {
+      // ... (existing mapping logic) ...
+      const d = new Date(l.Timestamp || l.Actual_Date);
+      const dateStr = (isNaN(d) || d.getFullYear() < 1970) ? (l.Actual_Date || 'N/A') : d.toLocaleString();
+      return `<tr>
+        <td>${dateStr}</td>
+        <td style="color:${l.color}; font-weight:bold;">${l.type}</td>
+        <td><b>${l.qty > 0 ? '+' + l.qty : l.qty}</b></td>
+        <td>${l.Issued_By || l.user || 'Manual Entry'}</td>
+        <td><small>${l.Remark || ''}</small></td>
+      </tr>`;
+  }).join('');
+
+  document.getElementById("logContent").innerHTML = html || '<tr><td colspan="5">No records found for this SAP No.</td></tr>';
+}
+
+function clearSearch() {
+  document.getElementById("sapSearch").value = "";
+  document.getElementById("itemDashboard").style.display = "none";
+  document.getElementById("summaryView").style.display = "block";
+}
+
+function getStockStatus(material) {
+  const today = new Date();
+  const repurchaseDate = new Date(material.Estimated_Repurchase_Date);
+  
+  // Calculate lead time safety buffer
+  const daysUntilRepurchase = (repurchaseDate - today) / (1000 * 60 * 60 * 24);
+
+  if (material.currentStock <= 0) {
+    return { label: "EMPTY", class: "bg-critical" };
+  } 
+  
+  // If the estimated repurchase date is within the Lead Time, we are late!
+  if (daysUntilRepurchase <= material.Lead_Time_Days) {
+    return { label: "ORDER NOW", class: "bg-critical" };
+  }
+
+  // If we need to repurchase within the next 7 days
+  if (daysUntilRepurchase <= (material.Lead_Time_Days + 7)) {
+    return { label: "REORDER SOON", class: "bg-warning" };
+  }
+
+  return { label: "OK", class: "bg-ok" };
+}
+
+// Modal logic remains similar, ensure it targets the correct input IDs
+let activeAction = '';
+function openModal(action) {
+  activeAction = action;
+  document.getElementById("modalTitle").innerText = action === 'issue' ? 'Record Issue' : 'Stock In';
+  
+  // Logic to set the HTML5 datetime-local input to local time
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  const localISOTime = (new Date(now - offset)).toISOString().slice(0, 16);
+  
+  document.getElementById("modalDate").value = localISOTime;
+  document.getElementById("txModal").style.display = "block";
+}
+function closeModal() { document.getElementById("txModal").style.display = "none"; }
+
+async function submitTx() {
+  const sap = document.getElementById("modalSap").value;
+  const mat = gData.materials.find(m => String(m.SAP_Code) === sap);
+  if(!mat) return alert("Invalid SAP No.");
+
+  const payload = {
+    action: activeAction,
+    materialId: mat.SAP_Code, // CHANGE: Send SAP_Code instead of Material_ID
+    materialName: mat.Material_Name,
+    qty: document.getElementById("modalQty").value,
+    refNo: document.getElementById("modalRef").value,
+    actualDate: document.getElementById("modalDate").value,
+    user: document.getElementById("modalUser").value,
+    remark: document.getElementById("modalRemark").value
+  };
+
+  document.getElementById("btnSubmit").innerText = "Saving...";
+  await fetch(API, { method: "POST", body: JSON.stringify(payload) });
+  location.reload();
+}
+
+init();
+</script>
+</body>
+</html>
