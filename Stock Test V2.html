@@ -50,8 +50,9 @@
       </div>
       <div class="btn-row">
         <button class="btn-clear" onclick="clearSearch()">Clear</button>
-        <button class="btn-issue" onclick="openModal('issue')">Record Issue</button>
-        <button class="btn-stockin" onclick="openModal('stockIn')">Stock In</button>
+  	<button style="background:#8e44ad; color:white;" onclick="openModal('purchase')">Purchase Order</button> 
+  	<button class="btn-issue" onclick="openModal('issue')">Record Issue</button>
+  	<button class="btn-stockin" onclick="openModal('stockIn')">Stock In</button>
       </div>
     </div>
   </div>
@@ -90,18 +91,36 @@
 <div id="txModal" class="modal">
   <div class="modal-content">
     <h3 id="modalTitle">Record</h3>
+    
     <label>SAP No:</label>
-    <input list="sapList" id="modalSap" placeholder="Search SAP No...">
-    <label>Ref No:</label>
-    <input type="text" id="modalRef" placeholder="e.g. DO-123 or Issue-456">
+<input list="sapList" id="modalSap" placeholder="Search SAP No..." onchange="checkExistingPO()">
+
+<label>Ref No:</label>
+<input type="text" id="modalRef" placeholder="e.g. PO-101" oninput="checkExistingPO()">
+
     <label>Quantity:</label>
     <input type="number" id="modalQty">
+
+    <div id="purchaseStatusDiv" style="display:none;">
+      <label>Order Status:</label>
+      <select id="modalStatus" style="width:100%; padding:10px; margin-bottom:10px;">
+        <option value="Ordered">Ordered</option>
+        <option value="Shipped">Shipped</option>
+        <option value="Received">Received</option>
+      </select>
+      <small style="color:#e67e22;">* Selecting "Received" will auto-update stock.</small>
+      <br><br>
+    </div>
+
     <label>Actual Date/Time:</label>
     <input type="datetime-local" id="modalDate">
+    
     <label>Person In Charge:</label>
     <input type="text" id="modalUser">
+    
     <label>Remark:</label>
     <textarea id="modalRemark" rows="2"></textarea>
+    
     <div style="text-align:right;">
       <button onclick="closeModal()">Cancel</button>
       <button id="btnSubmit" onclick="submitTx()" style="background:#3498db; color:white;">Submit</button>
@@ -111,7 +130,7 @@
 
 <script>
 const API = "https://script.google.com/macros/s/AKfycbwK_svCmu36qlzP7gq7pv9SrtHieUUQ2Vlieah1ZvHWLPS7uyb4LPxKxyBkXftR3OFiyw/exec";
-let gData = { materials: [], issues: [], stockIns: [] };
+let gData = { materials: [], issues: [], stockIns: [], purchases: [] }; // Initialize with purchases
 let chartObj = null;
 
 async function init() {
@@ -158,17 +177,28 @@ function handleSelection() {
 // Enhanced Status Detail with Prediction
 function renderStatusDetail(m) {
   const badge = m.status === 'OK' ? 'bg-ok' : (m.status === 'EMPTY' ? 'bg-critical' : 'bg-warning');
-  
-  // Calculate Forecast
   const consumptionRate = m.Avg_Daily_Usage || 0;
   const daysLeft = consumptionRate > 0 ? Math.floor(m.currentStock / consumptionRate) : "∞";
-  const reorderDate = m.Estimated_Repurchase_Date ? new Date(m.Estimated_Repurchase_Date).toLocaleDateString() : "TBD";
+
+  // NEW: Formatting for incoming stock
+  const incoming = m.incomingQty > 0 ? `<span style="color:#8e44ad; font-weight:bold;">+${m.incomingQty} (Incoming)</span>` : 'No Orders';
 
   document.getElementById("statusDetailTable").innerHTML = `
-    <tr><th>Material Name</th><td><b>${m.Material_Name}</b></td><th>Current Stock</th><td><b>${m.currentStock}</b></td></tr>
-    <tr><th>SAP / Model</th><td>${m.SAP_Code} / ${m.Model || '-'}</td><th>Status</th><td><span class="status-badge ${badge}">${m.status}</span></td></tr>
-    <tr><th>Est. Days Left</th><td>${daysLeft} Days</td><th>Next Reorder</th><td><b>${reorderDate}</b></td></tr>
-    <tr><th>Consumption</th><td>${consumptionRate.toFixed(2)} / day</td><th>Lead Time</th><td>${m.Lead_Time_Days || 0} Days</td></tr>
+    <tr>
+      <th>Material Name</th><td><b>${m.Material_Name}</b></td>
+      <th>Current Stock</th><td><b>${m.currentStock}</b></td>
+    </tr>
+    <tr>
+      <th>SAP / Model</th><td>${m.SAP_Code} / ${m.Model || '-'}</td>
+      <th>Status</th><td><span class="status-badge ${badge}">${m.status}</span></td>
+    </tr>
+    <tr>
+      <th>Purchasing</th><td>${incoming}</td> <th>Est. Days Left</th><td>${daysLeft} Days</td>
+    </tr>
+    <tr>
+      <th>Consumption</th><td>${consumptionRate.toFixed(2)} / day</td>
+      <th>Lead Time</th><td>${m.Lead_Time_Days || 0} Days</td>
+    </tr>
   `;
 }
 
@@ -220,38 +250,76 @@ function renderTrend(mat) {
   });
 }
 
+function checkExistingPO() {
+  // Only run this logic if we are in "Purchase" mode
+  if (activeAction !== 'purchase') return;
+
+  const sap = document.getElementById("modalSap").value;
+  const ref = document.getElementById("modalRef").value.trim();
+
+  // Need both SAP and Ref to find a unique PO
+  if (!sap || !ref) return;
+
+  // Search in the loaded data
+  // Note: gData.purchases must be populated from init()
+  const existingPO = gData.purchases.find(p => 
+    String(p.SAP_Code) === String(sap) && 
+    String(p.Ref_No) === String(ref)
+  );
+
+  if (existingPO) {
+    // FOUND: Auto-fill the form
+    document.getElementById("modalQty").value = existingPO.Qty;
+    document.getElementById("modalStatus").value = existingPO.Status;
+    document.getElementById("modalRemark").value = existingPO.Remark || '';
+    
+    // Optional: Visual cue
+    document.getElementById("modalTitle").innerText = "Purchase Order (Updating Existing)";
+    document.getElementById("modalTitle").style.color = "#8e44ad";
+  } else {
+    // NOT FOUND: Reset title (User is creating new)
+    document.getElementById("modalTitle").innerText = "Purchase Order (New)";
+    document.getElementById("modalTitle").style.color = "#333";
+  }
+}
+
 // CHANGE: Accept sapCode argument
 function renderLogs(sapCode) {
   const searchId = String(sapCode).trim();
   
   const allMovements = [
-    ...gData.issues.map(i => ({...i, type: 'ISSUE', color: '#e74c3c', qty: -Number(i.Issued_Qty || 0)})),
-    ...gData.stockIns.map(s => ({...s, type: 'STOCK IN', color: '#27ae60', qty: Number(s.In_Qty || 0)}))
+    ...gData.issues.map(i => ({...i, type: 'ISSUE', color: '#e74c3c', qty: -Number(i.Issued_Qty)})),
+    ...gData.stockIns.map(s => ({...s, type: 'STOCK IN', color: '#27ae60', qty: Number(s.In_Qty)})),
+    // NEW: Add Purchase Logs to the list
+    ...gData.purchases.map(p => ({
+        ...p, 
+        type: `PO: ${p.Status.toUpperCase()}`, 
+        color: '#8e44ad', // Purple for purchasing
+        qty: Number(p.Qty),
+        Timestamp: p.Timestamp
+    }))
   ];
 
   const filtered = allMovements.filter(row => {
-    // CHANGE: Check SAP_Code (or Material_ID for backward compatibility)
     const rowId = String(row.SAP_Code || row.Material_ID).trim();
     return rowId === searchId && rowId !== "";
   });
 
-  // ... (rest of the function remains the same: sorting and HTML generation) ...
   filtered.sort((a, b) => new Date(b.Timestamp || b.Actual_Date) - new Date(a.Timestamp || a.Actual_Date));
   
   let html = filtered.slice(0, 20).map(l => {
-      // ... (existing mapping logic) ...
       const d = new Date(l.Timestamp || l.Actual_Date);
       const dateStr = (isNaN(d) || d.getFullYear() < 1970) ? (l.Actual_Date || 'N/A') : d.toLocaleString();
       return `<tr>
         <td>${dateStr}</td>
         <td style="color:${l.color}; font-weight:bold;">${l.type}</td>
-        <td><b>${l.qty > 0 ? '+' + l.qty : l.qty}</b></td>
-        <td>${l.Issued_By || l.user || 'Manual Entry'}</td>
+        <td><b>${l.qty}</b></td>
+        <td>${l.Issued_By || l.user || l.Ref_No || '-'}</td>
         <td><small>${l.Remark || ''}</small></td>
       </tr>`;
   }).join('');
 
-  document.getElementById("logContent").innerHTML = html || '<tr><td colspan="5">No records found for this SAP No.</td></tr>';
+  document.getElementById("logContent").innerHTML = html || '<tr><td colspan="5">No records found.</td></tr>';
 }
 
 function clearSearch() {
@@ -288,14 +356,22 @@ function getStockStatus(material) {
 let activeAction = '';
 function openModal(action) {
   activeAction = action;
-  document.getElementById("modalTitle").innerText = action === 'issue' ? 'Record Issue' : 'Stock In';
   
-  // Logic to set the HTML5 datetime-local input to local time
+  // Set Title
+  if(action === 'issue') document.getElementById("modalTitle").innerText = 'Record Issue';
+  else if(action === 'stockIn') document.getElementById("modalTitle").innerText = 'Stock In';
+  else if(action === 'purchase') document.getElementById("modalTitle").innerText = 'Purchase Order';
+
+  // Toggle Status Dropdown
+  const statusDiv = document.getElementById("purchaseStatusDiv");
+  statusDiv.style.display = (action === 'purchase') ? 'block' : 'none';
+
+  // Date Logic
   const now = new Date();
   const offset = now.getTimezoneOffset() * 60000;
   const localISOTime = (new Date(now - offset)).toISOString().slice(0, 16);
-  
   document.getElementById("modalDate").value = localISOTime;
+  
   document.getElementById("txModal").style.display = "block";
 }
 function closeModal() { document.getElementById("txModal").style.display = "none"; }
@@ -307,13 +383,15 @@ async function submitTx() {
 
   const payload = {
     action: activeAction,
-    materialId: mat.SAP_Code, // CHANGE: Send SAP_Code instead of Material_ID
+    materialId: mat.SAP_Code,
     materialName: mat.Material_Name,
     qty: document.getElementById("modalQty").value,
     refNo: document.getElementById("modalRef").value,
     actualDate: document.getElementById("modalDate").value,
     user: document.getElementById("modalUser").value,
-    remark: document.getElementById("modalRemark").value
+    remark: document.getElementById("modalRemark").value,
+    // NEW: Send status if purchasing
+    status: activeAction === 'purchase' ? document.getElementById("modalStatus").value : ''
   };
 
   document.getElementById("btnSubmit").innerText = "Saving...";
